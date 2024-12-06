@@ -99,6 +99,11 @@ func vmRunCommand() *cobra.Command {
 	var vncPort int
 	var vncIPv4BindAddress string
 
+	var spice bool
+	var gl bool
+
+	var heads uint
+
 	vmPullPolicy := pullpolicy.IfNotExist
 	var containerPullPolicy pullpolicy.PullPolicy
 
@@ -233,6 +238,9 @@ func vmRunCommand() *cobra.Command {
 						VNCPort:            vncPort,
 						VNCIPv4BindAddress: vncIPv4BindAddress,
 						SSHUserName:        user,
+						Spice:              spice,
+						GL:                 gl,
+						Heads:              heads,
 					}
 
 					err = v.VMRun(c)
@@ -313,6 +321,9 @@ func vmRunCommand() *cobra.Command {
 	runCmd.Flags().BoolVarP(&vncEnabled, "vnc", "", false, "whether to configure VNC (remote GUI access) for the VM (defaults to false)")
 	runCmd.Flags().IntVar(&vncPort, "vnc-port", 0, "VNC port. Defaults to 6000+id of this VM")
 	runCmd.Flags().StringVar(&vncIPv4BindAddress, "vnc-bind-ip", "127.0.0.1", "VNC IPv4 address to bind VNC listening socket to")
+	runCmd.Flags().BoolVar(&spice, "spice", false, "whether to enable spice")
+	runCmd.Flags().BoolVar(&gl, "gl", false, "whether to enable virgl")
+	runCmd.Flags().UintVar(&heads, "heads", 1, "the amount of display heads")
 
 	return runCmd
 }

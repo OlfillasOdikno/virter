@@ -151,6 +151,63 @@ func (v *Virter) vmXML(vm VMConfig, mac string, meta *VMMeta) (string, error) {
 		}
 	}
 
+	extraChannels := []lx.DomainChannel{}
+	var spiceGraphics *lx.DomainGraphicSpice
+	var video *lx.DomainVideo
+
+	if vm.Spice {
+		var spiceGL *lx.DomainGraphicSpiceGL
+		if vm.GL {
+			spiceGL = &lx.DomainGraphicSpiceGL{
+				Enable: "yes",
+			}
+			video = &lx.DomainVideo{
+				Model: lx.DomainVideoModel{
+					Type:  "virtio",
+					Heads: vm.Heads,
+					Accel: &lx.DomainVideoAccel{Accel3D: "yes"},
+				},
+			}
+		} else {
+			video = &lx.DomainVideo{
+				Model: lx.DomainVideoModel{Type: "qxl", Heads: vm.Heads},
+			}
+		}
+		spiceGraphics = &lx.DomainGraphicSpice{
+			Listen: "none",
+			Image: &lx.DomainGraphicSpiceImage{
+				Compression: "off",
+			},
+			GL: spiceGL,
+		}
+		extraChannels = append(extraChannels, lx.DomainChannel{
+			Source: &lx.DomainChardevSource{
+				SpiceVMC: &lx.DomainChardevSourceSpiceVMC{},
+			},
+			Target: &lx.DomainChannelTarget{
+				VirtIO: &lx.DomainChannelTargetVirtIO{
+					Name: "com.redhat.spice.0",
+				},
+			},
+		})
+		extraChannels = append(extraChannels, lx.DomainChannel{
+			Source: &lx.DomainChardevSource{
+				SpicePort: &lx.DomainChardevSourceSpicePort{
+					Channel: "org.spice-space.webdav.0",
+				},
+			},
+			Target: &lx.DomainChannelTarget{
+				VirtIO: &lx.DomainChannelTargetVirtIO{
+					Name: "org.spice-space.webdav.0",
+				},
+			},
+		})
+	} else {
+		// For some reason, debian stretch doesn't boot without a video card. The virtio model seems to stable
+		// enough, even for multi-arch scenarios.
+		video = &lx.DomainVideo{Model: lx.DomainVideoModel{Type: "virtio", Heads: vm.Heads}}
+	}
+
 	domain := &lx.Domain{
 		Type: vm.CpuArch.DomainType(),
 		Name: vm.Name,
@@ -215,11 +272,12 @@ func (v *Virter) vmXML(vm VMConfig, mac string, meta *VMMeta) (string, error) {
 			},
 			Graphics: []lx.DomainGraphic{
 				{VNC: vncGraphics},
+				{Spice: spiceGraphics},
 			},
 			// For some reason, debian stretch doesn't boot without a video card. The virtio model seems to stable
 			// enough, even for multi-arch scenarios.
 			Videos: []lx.DomainVideo{
-				{Model: lx.DomainVideoModel{Type: "virtio"}},
+				*video,
 			},
 			MemBalloon: &lx.DomainMemBalloon{
 				Model: "virtio",
@@ -232,6 +290,7 @@ func (v *Virter) vmXML(vm VMConfig, mac string, meta *VMMeta) (string, error) {
 			RNGs: []lx.DomainRNG{
 				{Model: "virtio", Backend: &lx.DomainRNGBackend{Random: &lx.DomainRNGBackendRandom{Device: "/dev/urandom"}}},
 			},
+			Channels: extraChannels,
 		},
 		QEMUCommandline: qemuCommandline,
 	}

@@ -157,6 +157,9 @@ type VMConfig struct {
 	VNCPort            int
 	VNCIPv4BindAddress string
 	SSHUserName        string
+	Spice              bool
+	GL                 bool
+	Heads              uint
 }
 
 // VMMeta is additional metadata stored with each VM
